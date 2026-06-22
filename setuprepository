@@ -8,6 +8,7 @@ exitonerror() {
 	# test rc code
 	if test $1 -ne 0; then
 		# display error string
+		echo "return code: $1"
 		echo "$2"
 
 		# log error
@@ -16,18 +17,6 @@ exitonerror() {
 	fi
 }
 
-###############################################################
-# function to log output
-# first parameter is string to log
-# second parameter is used to start
-# a new log file
-###############################################################
-log() {
-	test "$2" = "new"  && rm -f ${LOGFILE}
-	echo "$1" | tee -a ${LOGFILE}
-}
-
-#########################################################
 # function to setup subversion link to the new path
 # the new user must already exist
 # the owner.group of the /mnt directory must
@@ -42,7 +31,7 @@ log() {
 #########################################################
 setuprepository() {
 	# check new user exists
-	getent passwd $1 > /dev/null 2>&1
+	/usr/bin/getent passwd "$1" > /dev/null 2>&1 
 	exitonerror $? "new user $1 does not exist"
 
 	# makelive now makes directories /mnt/debhome
@@ -50,7 +39,7 @@ setuprepository() {
 	# makelive delets these directories
 
 	# set ownership of /mnt to robert:robert
-	chown $1:$1 /mnt
+	/usr/bin/chown $1:$1 /mnt
 
 	# check that there is not a directory with the name of the link.
 	# remove it or fail
@@ -92,7 +81,6 @@ setuprepository() {
 		fi
 		# subversion | debhome exists and link is correct
 		echo "old link -> ${LINKPATH} new link -> $2"
-		log "repository exists $3 -> $2"
 
 	else
 		# full path does not exist to repository
@@ -135,19 +123,31 @@ setuprepository() {
 		exitonerror $? "could not make the link $3"
 
 		# check that the repository exists from the link
-		test -d "$3" || exitonerror 1 "repository not found at $2"
+		if test -d "$3"; then
+			# repository exists
+			echo "repository exists at $3 -> $2"
+		else
+			# repository not found
+			# enter a path to the repository and try again
+			until test -d "$3"; do
+				# prompt for a new path to $3
+				echo "Enter the full path that $3 points to"
+				read REPPATH
+				NEWLINK="$3"
+				NEWDEVICE="$4"
+				# try again
+				setuprepository "robert" "${REPPATH}" "${NEWLINK}" "${NEWDEVICE}"
+			done
 
 		# subversion | debhome exists and link is correct
-		log "repository exists $3 -> $2"
+		fi
 
 	fi
 	# repository exists
-
-
 }
 
 ###
 # main entry
 ###
-setuprepository "robert" "/mnt/ad64/debhome" "/mnt/debhome" "ad64"
-setuprepository "robert" "/mnt/ad64/svn" "/mnt/svn" "ad64"
+setuprepository "robert" "/junk" "/mnt/debhome" "ad64"
+# setuprepository "robert" "/mnt/ad64/svn" "/mnt/svn" "ad64"
