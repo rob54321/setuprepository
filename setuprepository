@@ -25,9 +25,10 @@ exitonerror() {
 # to point to it.
 # parameters: setupreppository
 # 		$1 CURUSER  (non root)
-#		$2 svnpath | debhomepath
+#		$2 svnpath roor dir | debhomepath root dir
 #		$3 link  (/mnt/svn/ | /mnt/debhome)
 #		$4 debhome | svn device which may not be necessary
+#		$5 svn full path | debhome full path ie /debhome_root_dir/dists/home
 #########################################################
 setuprepository() {
 	# check new user exists
@@ -55,15 +56,15 @@ setuprepository() {
 	fi
 
 	# check that repository can be found
-	# at the path
-	if test -d "$2"; then
+	# by using the full path
+	if test -d "$5"; then
 		# path exists now check the link
 		if test -L "$3"; then
 			# the link exists
 			# check where it points to
 			LINKPATH=`ls -l $3 | cut -d " " -f11`
 
-			# now check if link points to svn | debhome path
+			# now check if link points to svn | debhome root directory
 			if test "${LINKPATH}" != "$2"; then
 				# link must be changed
 				rm -vf "$3"
@@ -129,6 +130,9 @@ setuprepository() {
 		else
 			# repository not found
 			# enter a path to the repository and try again
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+fix this for 5 arguments for setuprepository
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 			until test -d "$3"; do
 				# prompt for a new path to $3
 				echo "Enter the full path that $3 points to"
@@ -149,5 +153,5 @@ setuprepository() {
 ###
 # main entry
 ###
-setuprepository "robert" "/junk" "/mnt/debhome" "ad64"
-# setuprepository "robert" "/mnt/ad64/svn" "/mnt/svn" "ad64"
+setuprepository "robert" "/opt/debhome" "/mnt/debhome" "ad64" "/opt/debhome/dists/home"
+setuprepository "robert" "/opt/svn" "/mnt/svn" "ad64" "/opt/svn"
