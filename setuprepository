@@ -27,7 +27,6 @@ exitonerror() {
 # 		$1 CURUSER  (non root)
 #		$2 svnpath roor dir | debhomepath root dir
 #		$3 svn | debhome , just the name to distuigish which one is being set up
-#		$4 debhome | svn device which may not be necessary
 #########################################################
 setuprepository() {
 	# the links /mnt/svn and /mnt/debhome never change.
@@ -114,41 +113,60 @@ setuprepository() {
 			exitonerror $? "could not make the link ${RESPOSITORY_LINK}"
 		fi
 		# subversion | debhome exists and link is correct
-		echo "old link -> ${LINKPATH} new link -> $2"
+		echo "repository exists at ${REPOSITORY_LINK} -> $2"
 
 	else
-		# full path does not exist to repository
+		# repository path is not valid
+		# it may reside on a device that is attached
+		# and needs to be mounted
 		# try and mount debhome | svn device
 		echo "repository does not exist at $2"
-		echo "will try and mount device $4"
+
+		# the repository root directories could be
+		# /mnt/device/debhome | svn
+		# /opt/debhome | svn etc
+		# determine if an attached device is in the root directory
+		# get the device part from /mnt/device/debhome | svn
+		DEVICE=`echo "$2" | cut -d "/" -f3`
 		
-		test -d "/mnt/$4" || sudo -u $1 mkdir "/mnt/$4"
-		exitonerror $? "could not make directory /mnt/$4"
+		# check if device is attached
+		lsblk -o LABEL | grep -w "${DEVICE}"
+		if test $? -eq 0; then 
+			# this is a valid device
+			# and it is attached.
+			echo "${DEVICE} is a valid attached device -- attempting to mount ${DEVICE}"
 
-		# mount the device if not mounted
-		# check where it is mounted
-		# should be on /mnt/$4
-		findmnt --source LABEL="$4"
-		if test $? -eq 0; then
-			# device is mounted
-			# get mountpoint
-			MNTPT=`findmnt --source LABEL="$4" -o TARGET | sed -n -e '2p'`
-			echo "$4 is mounted at ${MNTPT}"
+			test -d "/mnt/${DEVICE}" || sudo -u $1 mkdir "/mnt/${DEVICE}"
+			exitonerror $? "could not make directory /mnt/${DEVICE}"
 
-			# if mount point is not /mnt/$4
-			# then umount and mount again
-			if test "${MNTPT}" != "/mnt/$4"; then
-				# mounted but not at /mnt/$4
-				umount "${MNTPT}"
-				exitonerror $? "could not umount ${MNTPT}"
-				# mount it correctly
-				mount -v -L "$4" "/mnt/$4"
-				exitonerror $? "could not mount $4 at /mnt/$4"
+			# the repository root directory $2 is of
+			# the form /directory/debhome OR /mnt/device_label/debhome
+			# determine if the string contains a valid device label
+			# mount the device if not mounted
+			# check where it is mounted
+			# should be on /mnt/$DEVICE
+			findmnt --source LABEL="${DEVICE}"
+			if test $? -eq 0; then
+				# device is mounted
+				# get mountpoint
+				MNTPT=`findmnt --source LABEL="${DEVICE}" -o TARGET | sed -n -e '2p'`
+				echo "${DEVICE} is mounted at ${MNTPT}"
+
+				# if mount point is not /mnt/DEVICE
+				# then umount and mount again
+				if test "${MNTPT}" != "/mnt/${DEVICE}"; then
+					# mounted but not at /mnt/$DEVICE
+					umount "${MNTPT}"
+					exitonerror $? "could not umount ${MNTPT}"
+					# mount it correctly
+					mount -v -L "${DEVICE}" "/mnt/${DEVICE}"
+					exitonerror $? "could not mount ${DEVICE} at /mnt/${DEVICE}"
+				fi
+			else
+				# DEVICE is not mounted
+				mount -v -L "${DEVICE}" "/mnt/${DEVICE}"
+				exitonerror $? "could not mount ${DEVICE} at /mnt/${DEVICE}"
 			fi
-		else
-			# $4 is not mounted
-			mount -v -L "$4" "/mnt/$4"
-			exitonerror $? "could not mount $4 at /mnt/$4"
 		fi
 
 		# remove and make the link for subversion | debhome
@@ -159,7 +177,7 @@ setuprepository() {
 		# check that the repository exists from the link
 		if test -d "${REPOSITORY_PATH}"; then
 			# repository exists
-			echo "repository exists at ${RESPOSITORY_LINK} -> $2"
+			echo "repository exists at ${REPOSITORY_LINK} -> $2"
 		else
 			# repository not found
 			# enter the root directory to the repository and try again
@@ -168,9 +186,8 @@ setuprepository() {
 				echo "The link ${REPOSITORY_LINK} -> $2 which is invalid"
 				echo "Enter the root directory that ${REPOSITORY_LINK} points to"
 				read REPOSITORY_ROOT_DIR
-				NEWDEVICE="$4"
 				# try again
-				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${3}" "${NEWDEVICE}"
+				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${3}"
 			done
 
 		# subversion | debhome exists and link is correct
@@ -183,5 +200,5 @@ setuprepository() {
 ###
 # main entry
 ###
-# setuprepository "robert" "/home/robert/debhome" "debhome" "ad64"
-setuprepository "robert" "/home/robert/svn" "svn" "ad64"
+setuprepository "robert" "/mnt/ad645/deb" "debhome"
+# setuprepository "robert" "/home/robert/svn" "svn" "ad64"
