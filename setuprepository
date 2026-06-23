@@ -26,10 +26,16 @@ exitonerror() {
 # parameters: setupreppository
 # 		$1 CURUSER  (non root)
 #		$2 svnpath roor dir | debhomepath root dir
-#		$3 link  (/mnt/svn/ | /mnt/debhome)
+#		$3 svn | debhome , just the name to distuigish which one is being set up
 #		$4 debhome | svn device which may not be necessary
 #########################################################
 setuprepository() {
+	# the links /mnt/svn and /mnt/debhome never change.
+	# set them so they do not have to be passed as arguments
+	# to this function
+	SVN_LINK="/mnt/svn"
+	DEBHOME_LINK="/mnt/debhome"
+	
 	# check new user exists
 	/usr/bin/getent passwd "$1" > /dev/null 2>&1 
 	exitonerror $? "new user $1 does not exist"
@@ -39,20 +45,26 @@ setuprepository() {
 	# to check the existence of the debhome repository
 	# use /debian_root_directory/dists/home.
 	# only do this for debhome, not svn
-	if test "$3" = "/mnt/debhome"; then
+	if test "$3" = "debhome"; then
 		# set the full path of debhome for a better check
 		REPOSITORY_PATH="$2/dists/home"
-	elif test "$3" = "/mnt/svn"; then
+		# set the link
+		REPOSITORY_LINK="${DEBHOME_LINK}"
+
+	elif test "$3" = "svn"; then
 		# set the path for svn check
 		REPOSITORY_PATH="$2/db"
+		# set the link
+		REPOSITORY_LINK="${SVN_LINK}"
 	else
-		# $3 should be /mnt/svn or /mnt/debhome
+		# $3 should be svn or debhome
 		# but it is something else.
 		# print and error message and exit
-		exitonerror 1 "\$3 = $3 argument is invalid, should be /mnt/svn or /mnt/debhome"
+		exitonerror 1 "\$3 = $3, should be svn or debhome"
 	fi
 	echo "respository path = ${REPOSITORY_PATH}"
-	
+	echo "repository link = ${REPOSITORY_LINK}"
+
 	# makelive now makes directories /mnt/debhome
 	# and /mnt/svn to access svn and debhome.
 	# makelive delets these directories
@@ -66,11 +78,11 @@ setuprepository() {
 	# so a link can be made.
 	# test -d link gives true if link points to a directory.
 	# hence test for directory must be
-	# if file exists and is not a link and is a directory
-	if test -e "${3}" && test ! -L "${3}" && test -d "${3}"; then
-		echo "${3} is a directory, removing .."
-		rmdir -v "${3}"
-		exitonerror $? "Could not remove directory ${3}"
+	# if file or directory exists with the name of the link , /mnt/svn or /mnt/debhome, remove it
+	if test -e "${REPOSITORY_LINK}" && test ! -L "${REPOSITORY_LINK}" && test -d "${REPOSITORY_LINK}"; then
+		echo "${REPOSITORY_LINK} is a directory, removing .."
+		rmdir -v "${REPOSITORY_LINK}"
+		exitonerror $? "Could not remove directory ${REPOSITORY_LINK}"
 	fi
 
 	# check that repository can be found
@@ -80,26 +92,26 @@ setuprepository() {
 	# REPOSITORY_PATH is set for each repository
 	if test -d "${REPOSITORY_PATH}"; then
 		# path exists now check the link
-		if test -L "$3"; then
+		if test -L "${REPOSITORY_LINK}"; then
 			# the link exists
 			# check where it points to
-			LINKPATH=`ls -l $3 | cut -d " " -f11`
+			LINKPATH=`ls -l ${REPOSITORY_LINK} | cut -d " " -f11`
 
 			# now check if link points to svn | debhome root directory
 			if test "${LINKPATH}" != "$2"; then
 				# link must be changed
-				rm -vf "$3"
-				exitonerror $? "could not remove link $3"
+				rm -vf "${REPOSITORY_LINK}"
+				exitonerror $? "could not remove link ${REPOSITORY_LINK}"
 				# make the new link
-				sudo -u $1 ln -s "$2" "$3"
-				exitonerror $? "could not make the link $3"
+				sudo -u $1 ln -s "$2" "${REPOSITORY_LINK}"
+				exitonerror $? "could not make the link ${REPOSITORY_LINK}"
 			fi
 
 		else
 			# there is no link
 			# make the link
-			sudo -u $1 ln -s "$2" "$3"
-			exitonerror $? "could not make the link $3"
+			sudo -u $1 ln -s "$2" "${RESPOSITORY_LINK}"
+			exitonerror $? "could not make the link ${RESPOSITORY_LINK}"
 		fi
 		# subversion | debhome exists and link is correct
 		echo "old link -> ${LINKPATH} new link -> $2"
@@ -140,26 +152,25 @@ setuprepository() {
 		fi
 
 		# remove and make the link for subversion | debhome
-		rm -vf "$3"
-		sudo -u $1 ln -s "$2" "$3"
-		exitonerror $? "could not make the link $3"
+		rm -vf "${REPOSITORY_LINK}"
+		sudo -u $1 ln -s "$2" "${REPOSITORY_LINK}"
+		exitonerror $? "could not make the link ${REPOSITORY_LINK}"
 
 		# check that the repository exists from the link
 		if test -d "${REPOSITORY_PATH}"; then
 			# repository exists
-			echo "repository exists at $3 -> $2"
+			echo "repository exists at ${RESPOSITORY_LINK} -> $2"
 		else
 			# repository not found
 			# enter the root directory to the repository and try again
 			until test -d "${REPOSITORY_PATH}"; do
 				# prompt for a new path to 
-				echo "The link $3 -> $2 which is invalid"
-				echo "Enter the root directory that $3 points to"
+				echo "The link ${REPOSITORY_LINK} -> $2 which is invalid"
+				echo "Enter the root directory that ${REPOSITORY_LINK} points to"
 				read REPOSITORY_ROOT_DIR
-				NEWLINK="$3"
 				NEWDEVICE="$4"
 				# try again
-				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${NEWLINK}" "${NEWDEVICE}"
+				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${3}" "${NEWDEVICE}"
 			done
 
 		# subversion | debhome exists and link is correct
@@ -172,5 +183,5 @@ setuprepository() {
 ###
 # main entry
 ###
-setuprepository "robert" "/home/robert/debhome" "/mnt/debhome" "ad64"
-setuprepository "robert" "/mnt/ad64/svn" "/mnt/svn" "ad64"
+# setuprepository "robert" "/home/robert/debhome" "debhome" "ad64"
+setuprepository "robert" "/home/robert/svn" "svn" "ad64"
