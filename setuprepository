@@ -199,6 +199,6 @@ setuprepository() {
 
 ###
 # main entry
-###
-setuprepository "robert" "/mnt/ad645/deb" "debhome"
-# setuprepository "robert" "/home/robert/svn" "svn" "ad64"
+### for testing
+setuprepository "robert" "/opt/deb" "debhome"
+setuprepository "robert" "/mnt/axiz/svn" "svn"
