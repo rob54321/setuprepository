@@ -28,13 +28,31 @@ exitonerror() {
 #		$2 svnpath roor dir | debhomepath root dir
 #		$3 link  (/mnt/svn/ | /mnt/debhome)
 #		$4 debhome | svn device which may not be necessary
-#		$5 svn full path | debhome full path ie /debhome_root_dir/dists/home
 #########################################################
 setuprepository() {
 	# check new user exists
 	/usr/bin/getent passwd "$1" > /dev/null 2>&1 
 	exitonerror $? "new user $1 does not exist"
 
+	# the argument $2 is the debhome root directory.
+	# default is /mnt/ad64/debhome with link /mnt/debhome.
+	# to check the existence of the debhome repository
+	# use /debian_root_directory/dists/home.
+	# only do this for debhome, not svn
+	if test "$3" = "/mnt/debhome"; then
+		# set the full path of debhome for a better check
+		REPOSITORY_PATH="$2/dists/home"
+	elif test "$3" = "/mnt/svn"; then
+		# set the path for svn check
+		REPOSITORY_PATH="$2/db"
+	else
+		# $3 should be /mnt/svn or /mnt/debhome
+		# but it is something else.
+		# print and error message and exit
+		exitonerror 1 "\$3 = $3 argument is invalid, should be /mnt/svn or /mnt/debhome"
+	fi
+	echo "respository path = ${REPOSITORY_PATH}"
+	
 	# makelive now makes directories /mnt/debhome
 	# and /mnt/svn to access svn and debhome.
 	# makelive delets these directories
@@ -56,8 +74,11 @@ setuprepository() {
 	fi
 
 	# check that repository can be found
-	# by using the full path
-	if test -d "$5"; then
+	# by using the full path to the repository
+	# for debhome /debhome_root_directory/dists/home
+	# for svn /svn_root_directory
+	# REPOSITORY_PATH is set for each repository
+	if test -d "${REPOSITORY_PATH}"; then
 		# path exists now check the link
 		if test -L "$3"; then
 			# the link exists
@@ -120,27 +141,25 @@ setuprepository() {
 
 		# remove and make the link for subversion | debhome
 		rm -vf "$3"
-		sudo -u $1 ln -v -s "$2" "$3"
+		sudo -u $1 ln -s "$2" "$3"
 		exitonerror $? "could not make the link $3"
 
 		# check that the repository exists from the link
-		if test -d "$3"; then
+		if test -d "${REPOSITORY_PATH}"; then
 			# repository exists
 			echo "repository exists at $3 -> $2"
 		else
 			# repository not found
-			# enter a path to the repository and try again
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-fix this for 5 arguments for setuprepository
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-			until test -d "$3"; do
-				# prompt for a new path to $3
-				echo "Enter the full path that $3 points to"
-				read REPPATH
+			# enter the root directory to the repository and try again
+			until test -d "${REPOSITORY_PATH}"; do
+				# prompt for a new path to 
+				echo "The link $3 -> $2 which is invalid"
+				echo "Enter the root directory that $3 points to"
+				read REPOSITORY_ROOT_DIR
 				NEWLINK="$3"
 				NEWDEVICE="$4"
 				# try again
-				setuprepository "robert" "${REPPATH}" "${NEWLINK}" "${NEWDEVICE}"
+				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${NEWLINK}" "${NEWDEVICE}"
 			done
 
 		# subversion | debhome exists and link is correct
@@ -153,5 +172,5 @@ fix this for 5 arguments for setuprepository
 ###
 # main entry
 ###
-setuprepository "robert" "/opt/debhome" "/mnt/debhome" "ad64" "/opt/debhome/dists/home"
-setuprepository "robert" "/opt/svn" "/mnt/svn" "ad64" "/opt/svn"
+setuprepository "robert" "/home/robert/debhome" "/mnt/debhome" "ad64"
+setuprepository "robert" "/mnt/ad64/svn" "/mnt/svn" "ad64"
