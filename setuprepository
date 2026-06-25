@@ -61,7 +61,7 @@ setuprepository() {
 		# print and error message and exit
 		exitonerror 1 "\$3 = $3, should be svn or debhome"
 	fi
-	echo "respository path = ${REPOSITORY_PATH}"
+	echo "repository path = ${REPOSITORY_PATH}"
 	echo "repository link = ${REPOSITORY_LINK}"
 
 	# makelive now makes directories /mnt/debhome
@@ -109,8 +109,8 @@ setuprepository() {
 		else
 			# there is no link
 			# make the link
-			sudo -u $1 ln -s "$2" "${RESPOSITORY_LINK}"
-			exitonerror $? "could not make the link ${RESPOSITORY_LINK}"
+			sudo -u $1 ln -s "$2" "${REPOSITORY_LINK}"
+			exitonerror $? "could not make the link ${REPOSITORY_LINK}"
 		fi
 		# subversion | debhome exists and link is correct
 		echo "repository exists at ${REPOSITORY_LINK} -> $2"
@@ -201,4 +201,4 @@ setuprepository() {
 # main entry
 ### for testing
 setuprepository "robert" "/opt/deb" "debhome"
-setuprepository "robert" "/mnt/axiz/svn" "svn"
+setuprepository "robert" "/mnt/ad64/svn" "svn"
