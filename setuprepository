@@ -10,13 +10,11 @@ exitonerror() {
 		# display error string
 		echo "return code: $1"
 		echo "$2"
-
-		# log error
-		log "$2"
 		exit 1;
 	fi
 }
 
+################################################################
 # function to setup subversion link to the new path
 # the new user must already exist
 # the owner.group of the /mnt directory must
@@ -28,13 +26,13 @@ exitonerror() {
 #		$2 svnpath roor dir | debhomepath root dir
 #		$3 svn | debhome , just the name to distuigish which one is being set up
 #########################################################
-setuprepository() {
-	# the links /mnt/svn and /mnt/debhome never change.
-	# set them so they do not have to be passed as arguments
-	# to this function
+# the links /mnt/svn and /mnt/debhome never change.
+# set them so they do not have to be passed as arguments
+# to this function
+setup_repository () {
 	SVN_LINK="/mnt/svn"
 	DEBHOME_LINK="/mnt/debhome"
-	
+
 	# check new user exists
 	/usr/bin/getent passwd "$1" > /dev/null 2>&1 
 	exitonerror $? "new user $1 does not exist"
@@ -187,18 +185,20 @@ setuprepository() {
 				echo "Enter the root directory that ${REPOSITORY_LINK} points to"
 				read REPOSITORY_ROOT_DIR
 				# try again
-				setuprepository "robert" "${REPOSITORY_ROOT_DIR}" "${3}"
+				setup_repository "robert" "${REPOSITORY_ROOT_DIR}" "${3}"
 			done
 
 		# subversion | debhome exists and link is correct
 		fi
 
 	fi
-	# repository exists
 }
-
-###
-# main entry
-### for testing
-setuprepository "robert" "/opt/deb" "debhome"
-setuprepository "robert" "/mnt/ad64/svn" "svn"
+# Main entry
+# check there are three command line arguments
+if test "$#" -eq 3; then
+	setup_repository "$1" "$2" "$3"
+else
+	# the comman line arguments are incorrect
+	
+	exitonerror 1 "The comman line arguments are wrong: there are $# and the should be 3: currentuser, root_dir_of_repository, debhome | svn"
+fi
